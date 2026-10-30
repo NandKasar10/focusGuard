@@ -22,3 +22,4 @@ databases:
     databaseName: focusguard
     user: focusguard_user
     plan: free
+
