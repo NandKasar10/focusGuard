@@ -3,13 +3,8 @@ import 'dart:io';
 class AppConstants {
   static const String appName = 'FocusGuard';
   
-  // Base API URL (Localhost: 10.0.2.2 for Android Emulator, 127.0.0.1 for Windows)
-  static String get baseUrl {
-    if (Platform.isAndroid) {
-      return 'http://10.0.2.2:8000/api/v1';
-    }
-    return 'http://127.0.0.1:8000/api/v1';
-  }
+  // Base API URL (Live production backend on Render)
+  static const String baseUrl = 'https://focusguard-qdlw.onrender.com/api/v1';
 
   // Storage Keys
   static const String keyAccessToken = 'fg_access_token';
