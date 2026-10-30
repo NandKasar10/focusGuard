@@ -22,3 +22,4 @@ class User(Base):
     usage_logs = relationship("UsageLog", back_populates="user", cascade="all, delete-orphan")
     suggestions = relationship("Suggestion", back_populates="user", cascade="all, delete-orphan")
     reminders = relationship("Reminder", back_populates="user", cascade="all, delete-orphan")
+

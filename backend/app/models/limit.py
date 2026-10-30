@@ -16,3 +16,4 @@ class Limit(Base):
 
     user = relationship("User", back_populates="limits")
     tracked_app = relationship("TrackedApp", back_populates="limits")
+

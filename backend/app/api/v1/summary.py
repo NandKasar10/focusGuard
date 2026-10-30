@@ -119,3 +119,4 @@ def get_daily_summary(
         timeline=[SuggestionOut.model_validate(s) for s in suggestions],
         summary_message=summary_msg,
     )
+

@@ -71,3 +71,4 @@ def sync_usage_data(
         synced_records=synced_count,
         message=f"Successfully synced {synced_count} usage records.",
     )
+

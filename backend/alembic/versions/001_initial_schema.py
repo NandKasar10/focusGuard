@@ -131,3 +131,4 @@ def downgrade() -> None:
     op.drop_table('limits')
     op.drop_table('tracked_apps')
     op.drop_table('users')
+

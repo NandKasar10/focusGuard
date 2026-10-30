@@ -17,3 +17,4 @@ class Reminder(Base):
 
     user = relationship("User", back_populates="reminders")
     suggestion = relationship("Suggestion", back_populates="reminders")
+

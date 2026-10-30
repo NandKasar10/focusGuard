@@ -77,3 +77,4 @@ class StorageService {
 
   String getStudyGoals() => _prefs?.getString(AppConstants.keyStudyGoals) ?? 'Exam preparation and focused coding';
 }
+

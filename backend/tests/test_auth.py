@@ -81,3 +81,4 @@ def test_get_me(client, auth_headers):
     user_data = res.json()
     assert user_data["email"] == "test@focusguard.local"
     assert user_data["name"] == "Test User"
+

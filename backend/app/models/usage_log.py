@@ -21,3 +21,4 @@ class UsageLog(Base):
     __table_args__ = (
         UniqueConstraint("user_id", "app_id", "date", name="uq_user_app_date"),
     )
+

@@ -19,3 +19,4 @@ class Suggestion(Base):
 
     user = relationship("User", back_populates="suggestions")
     reminders = relationship("Reminder", back_populates="suggestion", cascade="all, delete-orphan")
+

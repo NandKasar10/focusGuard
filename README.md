@@ -258,3 +258,4 @@ To test the entire user journey in under 2 minutes without waiting for a full 60
 
 ## 🛡️ License
 Built for educational and digital wellbeing purposes.
+

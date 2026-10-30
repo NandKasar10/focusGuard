@@ -179,3 +179,4 @@ class UsageProvider extends ChangeNotifier {
     await refreshUsageStats();
   }
 }
+

@@ -43,3 +43,4 @@ def create_refresh_token(subject: Union[str, Any], expires_delta: Optional[timed
 
 def decode_token(token: str) -> dict:
     return jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.ALGORITHM])
+

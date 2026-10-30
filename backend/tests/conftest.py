@@ -65,3 +65,4 @@ def auth_headers(client):
     data = res.json()
     token = data["access_token"]
     return {"Authorization": f"Bearer {token}"}
+

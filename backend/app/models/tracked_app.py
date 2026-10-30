@@ -18,3 +18,4 @@ class TrackedApp(Base):
     user = relationship("User", back_populates="tracked_apps")
     limits = relationship("Limit", back_populates="tracked_app", cascade="all, delete-orphan")
     usage_logs = relationship("UsageLog", back_populates="tracked_app", cascade="all, delete-orphan")
+

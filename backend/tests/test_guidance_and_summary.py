@@ -140,3 +140,4 @@ def test_daily_summary(client, auth_headers):
     assert summary["compliance_percentage"] == 100.0
     assert len(summary["timeline"]) >= 1
     assert "Shabash" in summary["summary_message"] or "focus" in summary["summary_message"].lower()
+

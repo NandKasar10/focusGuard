@@ -23,3 +23,4 @@ class DailySummaryOut(BaseModel):
     focus_streak_days: int
     timeline: List[SuggestionOut]
     summary_message: str
+

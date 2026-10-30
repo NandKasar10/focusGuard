@@ -18,3 +18,4 @@ class UsageSyncResponse(BaseModel):
     success: bool
     synced_records: int
     message: str
+

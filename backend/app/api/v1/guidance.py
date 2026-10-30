@@ -132,3 +132,4 @@ def record_suggestion_reply(
     db.refresh(suggestion)
 
     return suggestion
+

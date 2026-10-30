@@ -86,3 +86,4 @@ class SummaryProvider extends ChangeNotifier {
     notifyListeners();
   }
 }
+

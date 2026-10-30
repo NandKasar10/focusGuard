@@ -104,3 +104,4 @@ def delete_all_user_data(
     current_user.screenshot_consent = False
     db.commit()
     return {"success": True, "message": "All user data and telemetry successfully deleted."}
+

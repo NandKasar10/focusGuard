@@ -44,3 +44,4 @@ class SettingsUpdate(BaseModel):
     has_video: Optional[bool] = None
     tracked_apps: Optional[List[TrackedAppSchema]] = None
     limits: Optional[List[LimitSchema]] = None
+
