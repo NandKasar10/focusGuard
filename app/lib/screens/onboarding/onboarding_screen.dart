@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../core/storage_service.dart';
 import '../../core/api_client.dart';
+import '../../services/window_detector_service.dart';
 import 'video_record_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -11,16 +12,84 @@ class OnboardingScreen extends StatefulWidget {
   State<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> {
+class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBindingObserver {
   final StorageService _storage = StorageService();
   final ApiClient _api = ApiClient();
+  final WindowDetectorService _detector = WindowDetectorService();
 
-  bool _usagePermissionGranted = true;
-  bool _overlayPermissionGranted = true;
+  bool _usagePermissionGranted = false;
+  bool _overlayPermissionGranted = false;
   bool _notificationPermissionGranted = true;
   bool _screenshotConsent = true;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _checkNativePermissions();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkNativePermissions();
+    }
+  }
+
+  Future<void> _checkNativePermissions() async {
+    if (Platform.isAndroid) {
+      final usage = await _detector.hasUsagePermission();
+      final overlay = await _detector.hasOverlayPermission();
+      if (mounted) {
+        setState(() {
+          _usagePermissionGranted = usage;
+          _overlayPermissionGranted = overlay;
+        });
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _usagePermissionGranted = true;
+          _overlayPermissionGranted = true;
+        });
+      }
+    }
+  }
+
   Future<void> _proceed() async {
+    // If on Android and Usage permission is not granted, warn the user
+    if (Platform.isAndroid && !_usagePermissionGranted) {
+      final allowProceed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Usage Access Needed ⚠️'),
+          content: const Text(
+            'Without Usage Access, FocusGuard cannot monitor apps like YouTube or Instagram.\n\nWould you like to grant it now?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Skip for now'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(ctx).pop(false);
+                _detector.openUsageSettings();
+              },
+              child: const Text('Open Settings'),
+            ),
+          ],
+        ),
+      );
+      if (allowProceed != true) return;
+    }
+
     // Save consent preference locally
     await _storage.setScreenshotConsent(_screenshotConsent);
 
@@ -53,7 +122,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Header
+                // Header Privacy Guarantee
                 Card(
                   color: theme.colorScheme.primaryContainer.withOpacity(0.5),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -86,52 +155,64 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 const SizedBox(height: 24),
 
                 Text(
-                  'Why FocusGuard Needs Permissions:',
+                  'Permissions Required for FocusGuard:',
                   style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 12),
 
                 // 1. Usage Monitoring
-                _buildPermissionCard(
+                _buildActionPermissionCard(
                   icon: Icons.timelapse_rounded,
-                  title: Platform.isAndroid ? 'Usage Stats Access' : 'Active Window Detection',
+                  title: Platform.isAndroid ? 'Usage Stats Access (Crucial)' : 'Active Window Detection',
                   description: Platform.isAndroid
-                      ? 'Required to detect when apps like YouTube, Instagram, and Facebook are opened.'
+                      ? 'Required to detect screen time on YouTube, Instagram, and Facebook.'
                       : 'Checks active window titles on Windows desktop to calculate your focus time.',
-                  granted: _usagePermissionGranted,
-                  onChanged: (val) => setState(() => _usagePermissionGranted = val),
+                  isGranted: _usagePermissionGranted,
+                  onAction: () async {
+                    if (Platform.isAndroid) {
+                      await _detector.openUsageSettings();
+                    } else {
+                      setState(() => _usagePermissionGranted = !_usagePermissionGranted);
+                    }
+                  },
                 ),
                 const SizedBox(height: 12),
 
                 // 2. Draw over apps / Overlay
-                _buildPermissionCard(
+                _buildActionPermissionCard(
                   icon: Icons.picture_in_picture_rounded,
                   title: 'Draw Over Apps / Fullscreen Overlay',
                   description:
-                      'Allows FocusGuard to pop up your personal motivational video immediately when your set limit is reached.',
-                  granted: _overlayPermissionGranted,
-                  onChanged: (val) => setState(() => _overlayPermissionGranted = val),
+                      'Allows FocusGuard to pop up your personal motivational video immediately over distracting apps.',
+                  isGranted: _overlayPermissionGranted,
+                  onAction: () async {
+                    if (Platform.isAndroid) {
+                      await _detector.openOverlaySettings();
+                    } else {
+                      setState(() => _overlayPermissionGranted = !_overlayPermissionGranted);
+                    }
+                  },
                 ),
                 const SizedBox(height: 12),
 
                 // 3. Notifications
-                _buildPermissionCard(
+                _buildToggleCard(
                   icon: Icons.notifications_active_outlined,
                   title: 'Notifications & Study Reminders',
                   description:
                       'Sends scheduled study reminders (e.g. "40 min ho gaye, ab dekh sakta hai") and daily focus summaries.',
-                  granted: _notificationPermissionGranted,
+                  value: _notificationPermissionGranted,
                   onChanged: (val) => setState(() => _notificationPermissionGranted = val),
                 ),
                 const SizedBox(height: 12),
 
                 // 4. AI Screenshot Consent
-                _buildPermissionCard(
+                _buildToggleCard(
                   icon: Icons.screenshot_monitor_rounded,
                   title: 'AI Screenshot Reality-Check (Optional)',
                   description:
                       'With your consent, FocusGuard captures the screen only at trigger time to give contextual advice in Hinglish. Never saved on server.',
-                  granted: _screenshotConsent,
+                  value: _screenshotConsent,
                   isConsent: true,
                   onChanged: (val) => setState(() => _screenshotConsent = val),
                 ),
@@ -155,11 +236,81 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  Widget _buildPermissionCard({
+  Widget _buildActionPermissionCard({
     required IconData icon,
     required String title,
     required String description,
-    required bool granted,
+    required bool isGranted,
+    required VoidCallback onAction,
+  }) {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: isGranted ? Colors.green.shade300 : Colors.amber.shade400,
+          width: 1.5,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CircleAvatar(
+              radius: 20,
+              backgroundColor: isGranted ? Colors.green.shade50 : Colors.amber.shade50,
+              child: Icon(icon, color: isGranted ? Colors.green : Colors.amber.shade800),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      ),
+                      if (isGranted)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text('Granted ✓', style: TextStyle(color: Colors.green, fontSize: 11, fontWeight: FontWeight.bold)),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(description, style: TextStyle(color: Colors.grey[700], fontSize: 12)),
+                  const SizedBox(height: 8),
+                  if (!isGranted)
+                    OutlinedButton.icon(
+                      onPressed: onAction,
+                      icon: const Icon(Icons.settings, size: 16),
+                      label: const Text('Enable in Settings'),
+                      style: OutlinedButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        foregroundColor: Colors.amber.shade900,
+                        side: BorderSide(color: Colors.amber.shade700),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildToggleCard({
+    required IconData icon,
+    required String title,
+    required String description,
+    required bool value,
     required ValueChanged<bool> onChanged,
     bool isConsent = false,
   }) {
@@ -188,7 +339,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
             ),
             Switch(
-              value: granted,
+              value: value,
               onChanged: onChanged,
             ),
           ],
@@ -197,4 +348,3 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 }
-

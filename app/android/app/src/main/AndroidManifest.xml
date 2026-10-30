@@ -37,6 +37,16 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        
+        <service
+            android:name=".FocusGuardService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.property.SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Digital Wellbeing and Usage Monitoring" />
+        </service>
     </application>
     <queries>
         <intent>

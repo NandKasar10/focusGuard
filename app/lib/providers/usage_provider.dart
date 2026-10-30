@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../core/api_client.dart';
@@ -8,6 +9,7 @@ import '../core/storage_service.dart';
 import '../models/tracked_app_model.dart';
 import '../services/intervention_manager.dart';
 import '../services/usage_monitor_service.dart';
+import '../services/window_detector_service.dart';
 
 class UsageProvider extends ChangeNotifier {
   final ApiClient _api = ApiClient();
@@ -15,24 +17,32 @@ class UsageProvider extends ChangeNotifier {
   final DatabaseHelper _db = DatabaseHelper();
   final UsageMonitorService _monitor = UsageMonitorService();
   final InterventionManager _intervention = InterventionManager();
+  final WindowDetectorService _detector = WindowDetectorService();
 
   List<TrackedAppModel> _trackedApps = [];
   int _combinedDailyLimitMinutes = 60;
   bool _isLoading = false;
+  bool _hasUsagePermission = true;
+  bool _hasOverlayPermission = true;
 
   List<TrackedAppModel> get trackedApps => _trackedApps;
   int get combinedDailyLimitMinutes => _combinedDailyLimitMinutes;
   bool get isLoading => _isLoading;
   bool get isMonitoring => _monitor.isMonitoring;
+  bool get hasUsagePermission => _hasUsagePermission;
+  bool get hasOverlayPermission => _hasOverlayPermission;
 
   Future<void> init() async {
     _isLoading = true;
     notifyListeners();
 
-    // 1. Initialize default apps if empty
+    // 1. Check native permissions
+    await checkPermissions();
+
+    // 2. Initialize default apps if empty
     _loadDefaultApps();
 
-    // 2. Fetch remote settings from backend
+    // 3. Fetch remote settings from backend
     try {
       final res = await _api.get('/settings');
       if (res.statusCode == 200) {
@@ -56,14 +66,23 @@ class UsageProvider extends ChangeNotifier {
       debugPrint('Settings fetch error: $e');
     }
 
-    // 3. Load daily usage from local SQLite
+    // 4. Load daily usage and sync with Android OS UsageStatsManager
     await refreshUsageStats();
 
-    // 4. Start usage monitor
+    // 5. Start background foreground service on Android to keep monitoring active
+    if (Platform.isAndroid && _hasUsagePermission) {
+      await _detector.startForegroundService();
+    }
+
+    // 6. Start real-time usage monitor
     _monitor.configure(
       trackedApps: _trackedApps,
       combinedDailyLimitMinutes: _combinedDailyLimitMinutes,
       onLimitReached: (appName, sessionM, dailyM, winTitle) async {
+        // Bring app to front on Android over YouTube / Instagram
+        if (Platform.isAndroid) {
+          await _detector.bringToFront();
+        }
         await _intervention.triggerIntervention(
           appName: appName,
           sessionMinutes: sessionM,
@@ -79,6 +98,22 @@ class UsageProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> checkPermissions() async {
+    if (Platform.isAndroid) {
+      _hasUsagePermission = await _detector.hasUsagePermission();
+      _hasOverlayPermission = await _detector.hasOverlayPermission();
+      notifyListeners();
+    }
+  }
+
+  Future<void> openUsageSettings() async {
+    await _detector.openUsageSettings();
+  }
+
+  Future<void> openOverlaySettings() async {
+    await _detector.openOverlaySettings();
+  }
+
   void _loadDefaultApps() {
     _trackedApps = AppConstants.defaultTrackedApps.map((map) {
       return TrackedAppModel(
@@ -92,6 +127,35 @@ class UsageProvider extends ChangeNotifier {
 
   Future<void> refreshUsageStats() async {
     final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+    // 1. On Android, pull true OS usage stats directly from Android UsageStatsManager
+    if (Platform.isAndroid) {
+      try {
+        final osUsage = await _detector.getDailyUsageMinutes();
+        if (osUsage.isNotEmpty) {
+          for (final app in _trackedApps) {
+            final packages = app.packageOrProcess.toLowerCase().split(',');
+            int osMinutes = 0;
+            for (final pkg in packages) {
+              final clean = pkg.trim();
+              if (osUsage.containsKey(clean)) {
+                osMinutes += osUsage[clean]!;
+              }
+            }
+
+            final localMinutes = await _db.getDailyMinutesForApp(app.appName, todayStr);
+            if (osMinutes > localMinutes) {
+              final diff = osMinutes - localMinutes;
+              await _db.addUsageMinutes(appName: app.appName, dateStr: todayStr, minutes: diff);
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('OS Usage sync error: $e');
+      }
+    }
+
+    // 2. Read latest totals from local SQLite
     for (final app in _trackedApps) {
       app.currentUsageTodayMinutes = await _db.getDailyMinutesForApp(app.appName, todayStr);
     }
@@ -160,6 +224,9 @@ class UsageProvider extends ChangeNotifier {
   }
 
   Future<void> _monitorLimitReachedCallback(String app, int sesM, int dayM, String title) async {
+    if (Platform.isAndroid) {
+      await _detector.bringToFront();
+    }
     await _intervention.triggerIntervention(
       appName: app,
       sessionMinutes: sesM,
@@ -179,4 +246,3 @@ class UsageProvider extends ChangeNotifier {
     await refreshUsageStats();
   }
 }
-

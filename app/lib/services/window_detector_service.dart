@@ -109,4 +109,74 @@ class WindowDetectorService {
     }
     return null;
   }
+
+  // --- Android Permission & Native Helpers ---
+
+  Future<bool> hasUsagePermission() async {
+    if (!Platform.isAndroid) return true;
+    try {
+      final bool? res = await _androidChannel.invokeMethod('hasUsagePermission');
+      return res ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> openUsageSettings() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _androidChannel.invokeMethod('openUsageSettings');
+    } catch (_) {}
+  }
+
+  Future<bool> hasOverlayPermission() async {
+    if (!Platform.isAndroid) return true;
+    try {
+      final bool? res = await _androidChannel.invokeMethod('hasOverlayPermission');
+      return res ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> openOverlaySettings() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _androidChannel.invokeMethod('openOverlaySettings');
+    } catch (_) {}
+  }
+
+  Future<Map<String, int>> getDailyUsageMinutes() async {
+    if (!Platform.isAndroid) return {};
+    try {
+      final dynamic raw = await _androidChannel.invokeMethod('getDailyUsageStats');
+      if (raw is Map) {
+        return raw.map((k, v) => MapEntry(k.toString(), (v as num).toInt()));
+      }
+    } catch (e) {
+      debugPrint('getDailyUsageMinutes error: $e');
+    }
+    return {};
+  }
+
+  Future<void> bringToFront() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _androidChannel.invokeMethod('bringToFront');
+    } catch (_) {}
+  }
+
+  Future<void> startForegroundService() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _androidChannel.invokeMethod('startForegroundService');
+    } catch (_) {}
+  }
+
+  Future<void> stopForegroundService() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _androidChannel.invokeMethod('stopForegroundService');
+    } catch (_) {}
+  }
 }

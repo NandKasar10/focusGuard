@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/storage_service.dart';
@@ -14,15 +15,31 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObserver {
   final StorageService _storage = StorageService();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<UsageProvider>(context, listen: false).init();
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      final usage = Provider.of<UsageProvider>(context, listen: false);
+      usage.checkPermissions();
+      usage.refreshUsageStats();
+    }
   }
 
   @override
@@ -151,6 +168,95 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
+
+                  // Permission Warning Banner if on Android & Usage Access missing
+                  if (Platform.isAndroid && !usage.hasUsagePermission) ...[
+                    Card(
+                      color: Colors.amber.shade50,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        side: BorderSide(color: Colors.amber.shade400, width: 1.5),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.warning_amber_rounded, color: Colors.amber.shade900, size: 24),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Usage Access Required ⚙️',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Android requires Usage Access to let FocusGuard detect YouTube & Instagram and count your minutes watched.',
+                              style: TextStyle(color: Colors.grey[800], fontSize: 12),
+                            ),
+                            const SizedBox(height: 10),
+                            ElevatedButton.icon(
+                              onPressed: () => usage.openUsageSettings(),
+                              icon: const Icon(Icons.security_rounded, size: 16),
+                              label: const Text('Grant Usage Access in Settings'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.amber.shade800,
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  if (Platform.isAndroid && !usage.hasOverlayPermission) ...[
+                    Card(
+                      color: Colors.blue.shade50,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        side: BorderSide(color: Colors.blue.shade300, width: 1.5),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.picture_in_picture_rounded, color: Colors.blue.shade800, size: 24),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Draw Over Apps Permission',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Required so FocusGuard can pop up your motivational video over distracting apps when limits are reached.',
+                              style: TextStyle(color: Colors.grey[800], fontSize: 12),
+                            ),
+                            const SizedBox(height: 10),
+                            OutlinedButton.icon(
+                              onPressed: () => usage.openOverlaySettings(),
+                              icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                              label: const Text('Allow Display Over Apps'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.blue.shade900,
+                                side: BorderSide(color: Colors.blue.shade700),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
 
                   // Motivational Video Status
                   Card(
