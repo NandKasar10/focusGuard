@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: focusguard-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: focusguard
+      POSTGRES_PASSWORD: focusguard_secure_password
+      POSTGRES_DB: focusguard
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U focusguard -d focusguard"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:

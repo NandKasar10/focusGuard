@@ -1,0 +1,25 @@
+# Python & Environments
+__pycache__/
+*.py[cod]
+*$py.class
+backend/venv/
+*.db
+*.sqlite3
+.pytest_cache/
+
+# Environment files
+backend/.env
+
+# Flutter & Dart
+app/.dart_tool/
+app/build/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/windows/flutter/ephemeral/
+app/android/.gradle/
+app/android/local.properties
+
+# IDEs
+.idea/
+.vscode/
+*.swp
