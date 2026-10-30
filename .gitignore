@@ -24,3 +24,6 @@ app/android/local.properties
 .vscode/
 *.swp
 
+# Dist binaries
+dist/
+
